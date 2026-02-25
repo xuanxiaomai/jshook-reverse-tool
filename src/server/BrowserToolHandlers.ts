@@ -138,12 +138,12 @@ export class BrowserToolHandlers {
 
   async handlePageNavigate(args: Record<string, unknown>) {
     const url = args.url as string;
-    const waitUntil = args.waitUntil as any;
-    const timeout = args.timeout as number;
-    // ✅ 新增：可选的自动网络监控
+    const waitUntil: 'load' | 'domcontentloaded' | 'networkidle0' | 'networkidle2' =
+      (args.waitUntil as 'load' | 'domcontentloaded' | 'networkidle0' | 'networkidle2') ?? 'domcontentloaded';
+    const timeout = (args.timeout as number) ?? 30000;
+    // ✅ 可选的自动网络监控
     const enableNetworkMonitoring = args.enableNetworkMonitoring as boolean | undefined;
 
-    // ✅ 如果请求启用网络监控，在导航前启用
     let networkMonitoringEnabled = false;
     if (enableNetworkMonitoring) {
       if (!this.consoleMonitor.isNetworkEnabled()) {
@@ -158,13 +158,27 @@ export class BrowserToolHandlers {
           logger.warn('Failed to auto-enable network monitoring:', error);
         }
       } else {
-        // 已经启用，标记为true
         networkMonitoringEnabled = true;
         logger.info('✅ Network monitoring already enabled');
       }
     }
 
-    await this.pageController.navigate(url, { waitUntil, timeout });
+    try {
+      await this.pageController.navigate(url, { waitUntil, timeout });
+    } catch (navError: unknown) {
+      logger.error('Navigation error:', navError);
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            success: false,
+            error: navError instanceof Error ? navError.message : String(navError),
+            url,
+            hint: 'Try increasing timeout or using waitUntil: "domcontentloaded"',
+          }, null, 2),
+        }],
+      };
+    }
 
     // 自动检测验证码
     if (this.autoDetectCaptcha) {
@@ -999,6 +1013,47 @@ export class BrowserToolHandlers {
           success: true,
           platform,
           message: `User-Agent已设置为${platform}平台`,
+        }, null, 2),
+      }],
+    };
+  }
+
+  /**
+   * 注入 AntiDebug_Breaker 反调试脚本（可按参数开关各项）
+   */
+  async handleAntiDebugInject(args: Record<string, unknown>) {
+    const page = await this.pageController.getPage();
+    const enabled: string[] = [];
+    const disabled: string[] = [];
+    const checks: Array<{ key: string; method: keyof typeof StealthScripts2025; name: string }> = [
+      { key: 'bypassDebugger', method: 'bypassDebugger', name: '绕过debugger' },
+      { key: 'hookConsoleClear', method: 'hookConsoleClear', name: '禁止清除控制台' },
+      { key: 'hookWindowClose', method: 'hookWindowClose', name: '阻止页面关闭' },
+      { key: 'hookHistory', method: 'hookHistoryBack', name: '阻止历史跳转' },
+      { key: 'fixedWindowSize', method: 'fixedWindowSize', name: '固定窗口大小' },
+      { key: 'hookConsoleMethods', method: 'hookConsoleLog', name: '防止重写console' },
+      { key: 'bypassPerformanceCheck', method: 'bypassPerformanceCheck', name: '绕过时间差检测' },
+      { key: 'hookLocationHref', method: 'hookLocationHref', name: '阻断页面跳转' },
+    ];
+    for (const check of checks) {
+      const isEnabled = args[check.key] !== false;
+      if (isEnabled) {
+        await (StealthScripts2025[check.method] as (page: import('puppeteer').Page) => Promise<void>)(page);
+        enabled.push(check.name);
+      } else {
+        disabled.push(check.name);
+      }
+    }
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify({
+          success: true,
+          message: '🔒 AntiDebug_Breaker反调试脚本已注入',
+          enabled,
+          disabled,
+          totalEnabled: enabled.length,
+          totalDisabled: disabled.length,
         }, null, 2),
       }],
     };

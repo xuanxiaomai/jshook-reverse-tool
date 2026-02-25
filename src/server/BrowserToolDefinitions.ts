@@ -868,5 +868,68 @@ get_script_source(scriptId="abc", preview=true)
       },
     },
   },
+  {
+    name: 'anti_debug_inject',
+    description: `注入AntiDebug_Breaker反调试脚本
+
+基于 https://github.com/0xsdeo/AntiDebug_Breaker 项目
+
+包含以下反调试技术：
+1. Bypass Debugger - 绕过无限debugger (eval/Function/constructor)
+2. Hook Console.clear - 禁止js清除控制台数据
+3. Hook Window.close - 阻止页面关闭反调试
+4. Hook History - 阻止返回上一页或特定历史页面
+5. Fixed Window Size - 固定窗口大小绕过控制台检测
+6. Hook Console Methods - 防止js重写console方法
+7. Bypass Performance Check - 绕过时间差反调试
+8. Hook Location.href - 阻断页面跳转定位
+
+建议在 stealth_inject 之后调用，或在遇到反调试时单独调用`,
+    inputSchema: {
+      type: 'object',
+      properties: {
+        bypassDebugger: {
+          type: 'boolean',
+          description: '启用绕过debugger (默认true)',
+          default: true,
+        },
+        hookConsoleClear: {
+          type: 'boolean',
+          description: '启用禁止清除控制台 (默认true)',
+          default: true,
+        },
+        hookWindowClose: {
+          type: 'boolean',
+          description: '启用阻止页面关闭 (默认true)',
+          default: true,
+        },
+        hookHistory: {
+          type: 'boolean',
+          description: '启用阻止历史跳转 (默认true)',
+          default: true,
+        },
+        fixedWindowSize: {
+          type: 'boolean',
+          description: '启用固定窗口大小 (默认true)',
+          default: true,
+        },
+        hookConsoleMethods: {
+          type: 'boolean',
+          description: '启用防止重写console (默认true)',
+          default: true,
+        },
+        bypassPerformanceCheck: {
+          type: 'boolean',
+          description: '启用绕过时间差检测 (默认true)',
+          default: true,
+        },
+        hookLocationHref: {
+          type: 'boolean',
+          description: '启用阻断页面跳转 (默认true)',
+          default: true,
+        },
+      },
+    },
+  },
 ];
 

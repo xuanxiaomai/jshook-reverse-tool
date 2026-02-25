@@ -423,6 +423,8 @@ export class MCPServer {
             return await this.browserHandlers.handleStealthInject(toolArgs);
           case 'stealth_set_user_agent':
             return await this.browserHandlers.handleStealthSetUserAgent(toolArgs);
+          case 'anti_debug_inject':
+            return await this.browserHandlers.handleAntiDebugInject(toolArgs);
 
           // 🆕 AI Hook工具（7个）
           case 'ai_hook_generate':

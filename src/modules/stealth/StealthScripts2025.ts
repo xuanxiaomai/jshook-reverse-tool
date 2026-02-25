@@ -328,6 +328,203 @@ export class StealthScripts2025 {
     }, platformMap[platform]);
   }
 
+  // ==================== 反反调试 (AntiDebug_Breaker) ====================
+
+  /**
+   * 注入 AntiDebug_Breaker 反调试脚本（8 项）
+   * 建议在 stealth_inject 之后调用，或在遇到反调试时单独调用
+   */
+  static async injectAntiDebug(page: Page): Promise<void> {
+    logger.info('🔒 注入AntiDebug_Breaker反调试脚本...');
+    await Promise.all([
+      this.bypassDebugger(page),
+      this.hookConsoleClear(page),
+      this.hookWindowClose(page),
+      this.hookHistoryBack(page),
+      this.fixedWindowSize(page),
+      this.hookConsoleLog(page),
+      this.bypassPerformanceCheck(page),
+      this.hookLocationHref(page),
+    ]);
+    logger.info('✅ 反调试脚本注入完成');
+  }
+
+  /** 绕过无限 debugger (eval/Function/constructor) */
+  static async bypassDebugger(page: Page): Promise<void> {
+    await page.evaluateOnNewDocument(() => {
+      const temp_eval = (window as any).eval;
+      (window as any).eval = function (this: any, ...args: any[]) {
+        if (typeof args[0] === 'string') {
+          args[0] = args[0].replaceAll(/debugger/g, '');
+        }
+        return temp_eval.apply(this, args);
+      };
+      const Bypass_debugger = Function;
+      (globalThis as any).Function = function (this: any, ..._args: any[]) {
+        const arr = Array.from(arguments);
+        for (let i = 0; i < arr.length; i++) {
+          if (typeof arr[i] === 'string') {
+            arr[i] = (arr[i] as string).replaceAll(/debugger/g, '');
+          }
+        }
+        return (Bypass_debugger as any).apply(this, arr);
+      };
+      (Function as any).prototype = (Bypass_debugger as any).prototype;
+      (Function as any).prototype.constructor = function (this: any) {
+        const arr = Array.from(arguments);
+        for (let i = 0; i < arr.length; i++) {
+          if (typeof arr[i] === 'string') {
+            arr[i] = (arr[i] as string).replaceAll(/debugger/g, '');
+          }
+        }
+        return (Bypass_debugger as any)(...arr);
+      };
+      ((Function as any).prototype.constructor as any).prototype = (Function as any).prototype;
+    });
+  }
+
+  /** 禁止 JS 清除控制台 */
+  static async hookConsoleClear(page: Page): Promise<void> {
+    await page.evaluateOnNewDocument(() => {
+      console.clear = function () {};
+    });
+  }
+
+  /** 阻止页面关闭反调试 */
+  static async hookWindowClose(page: Page): Promise<void> {
+    await page.evaluateOnNewDocument(() => {
+      window.close = function () {};
+    });
+  }
+
+  /** 阻止返回上一页或特定历史页面 */
+  static async hookHistoryBack(page: Page): Promise<void> {
+    await page.evaluateOnNewDocument(() => {
+      window.history.go = function () {};
+      window.history.back = function () {};
+    });
+  }
+
+  /** 固定窗口大小绕过控制台检测 */
+  static async fixedWindowSize(page: Page): Promise<void> {
+    await page.evaluateOnNewDocument(() => {
+      const inner_height = 660;
+      const inner_width = 1366;
+      const outer_height = 760;
+      const outer_width = 1400;
+      const innerHeight_property_accessor = Object.getOwnPropertyDescriptor(
+        window,
+        'innerHeight'
+      );
+      const innerHeight_set_accessor = innerHeight_property_accessor?.set;
+      Object.defineProperty(window, 'innerHeight', {
+        get: function () {
+          return inner_height;
+        },
+        set: function () {
+          if (innerHeight_set_accessor) {
+            innerHeight_set_accessor.call(window, inner_height);
+          }
+        },
+      });
+      const innerWidth_property_accessor = Object.getOwnPropertyDescriptor(
+        window,
+        'innerWidth'
+      );
+      const innerWidth_set_accessor = innerWidth_property_accessor?.set;
+      Object.defineProperty(window, 'innerWidth', {
+        get: function () {
+          return inner_width;
+        },
+        set: function () {
+          if (innerWidth_set_accessor) {
+            innerWidth_set_accessor.call(window, inner_width);
+          }
+        },
+      });
+      const outerWidth_property_accessor = Object.getOwnPropertyDescriptor(
+        window,
+        'outerWidth'
+      );
+      const outerWidth_set_accessor = outerWidth_property_accessor?.set;
+      Object.defineProperty(window, 'outerWidth', {
+        get: function () {
+          return outer_width;
+        },
+        set: function () {
+          if (outerWidth_set_accessor) {
+            outerWidth_set_accessor.call(window, outer_width);
+          }
+        },
+      });
+      const outerHeight_property_accessor = Object.getOwnPropertyDescriptor(
+        window,
+        'outerHeight'
+      );
+      const outerHeight_set_accessor = outerHeight_property_accessor?.set;
+      Object.defineProperty(window, 'outerHeight', {
+        get: function () {
+          return outer_height;
+        },
+        set: function () {
+          if (outerHeight_set_accessor) {
+            outerHeight_set_accessor.call(window, outer_height);
+          }
+        },
+      });
+    });
+  }
+
+  /** 防止 JS 重写 console 方法 */
+  static async hookConsoleLog(page: Page): Promise<void> {
+    await page.evaluateOnNewDocument(() => {
+      const methods = ['log', 'warn', 'error', 'info', 'debug', 'table'];
+      methods.forEach((method) => {
+        const original = (console as any)[method];
+        if (original) {
+          Object.defineProperty(console, method, {
+            value: function (...args: any[]) {
+              return original.apply(console, args);
+            },
+            writable: false,
+            configurable: false,
+          });
+        }
+      });
+    });
+  }
+
+  /** 绕过时间差反调试 */
+  static async bypassPerformanceCheck(page: Page): Promise<void> {
+    await page.evaluateOnNewDocument(() => {
+      const _consoleTable = console.table.bind(console);
+      (console as any).table = function (arr: any) {
+        if (arr && Array.isArray(arr) && arr.length >= 50) {
+          return;
+        }
+        return _consoleTable.apply(this, arguments as any);
+      };
+      const _now = performance.now.bind(performance);
+      let lastNow = 0;
+      performance.now = function () {
+        const realNow = _now();
+        if (lastNow === 0 || realNow - lastNow > 10) {
+          lastNow = realNow;
+        }
+        return lastNow;
+      };
+    });
+  }
+
+  /** 阻断页面跳转定位 */
+  static async hookLocationHref(page: Page): Promise<void> {
+    await page.evaluateOnNewDocument(() => {
+      window.onbeforeunload = () => {
+        return false;
+      };
+    });
+  }
+
   /**
    * 获取推荐的启动参数
    */
