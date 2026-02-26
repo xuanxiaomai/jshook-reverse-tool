@@ -132,6 +132,49 @@ export const debuggerTools: Tool[] = [
     },
   },
 
+  {
+    name: 'breakpoint_set_on_text',
+    description: `Set breakpoint by searching code text first (useful for minified scripts).
+
+Usage:
+1. Search keyword/regex in all loaded scripts
+2. Pick one match by matchIndex
+3. Set breakpoint at matched line/column
+
+Best for:
+- Minified bundles without stable line numbers
+- Quickly locating target code by snippet`,
+    inputSchema: {
+      type: 'object',
+      properties: {
+        keyword: {
+          type: 'string',
+          description: 'Text or regex pattern to search in scripts',
+        },
+        isRegex: {
+          type: 'boolean',
+          description: 'Treat keyword as regular expression',
+          default: false,
+        },
+        caseSensitive: {
+          type: 'boolean',
+          description: 'Whether text search is case-sensitive',
+          default: false,
+        },
+        matchIndex: {
+          type: 'number',
+          description: 'Which match to use (0-based, default 0)',
+          default: 0,
+        },
+        condition: {
+          type: 'string',
+          description: 'Optional conditional breakpoint expression',
+        },
+      },
+      required: ['keyword'],
+    },
+  },
+
   // ==================== 运行时检查（2个） ====================
   
   {

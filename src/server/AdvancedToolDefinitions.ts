@@ -135,6 +135,28 @@ network_enable() → page_navigate("https://api.example.com") → network_get_re
   },
 
   {
+    name: 'network_get_request_initiator',
+    description: `Get JavaScript initiator info for a request (who triggered this request).
+
+Use case:
+- Locate which script/function initiated an API request
+- Analyze request stack traces for signature generation paths
+
+Input:
+- requestId from network_get_requests`,
+    inputSchema: {
+      type: 'object',
+      properties: {
+        requestId: {
+          type: 'string',
+          description: 'Request ID from network_get_requests',
+        },
+      },
+      required: ['requestId'],
+    },
+  },
+
+  {
     name: 'network_get_stats',
     description: '获取网络统计信息（请求数、响应数、按方法/状态分组等）',
     inputSchema: {
@@ -247,6 +269,41 @@ network_enable() → page_navigate("https://api.example.com") → network_get_re
         },
       },
       required: ['functionName'],
+    },
+  },
+
+  // ==================== Hook / 追踪（2个）====================
+  {
+    name: 'hook_function',
+    description: 'Hook 指定函数并记录调用信息（参数/返回值，可选调用栈）',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        expression: {
+          type: 'string',
+          description: '目标函数表达式（如 window.encrypt / obj.sign）',
+        },
+        logStack: {
+          type: 'boolean',
+          description: '是否额外记录调用栈',
+          default: false,
+        },
+      },
+      required: ['expression'],
+    },
+  },
+  {
+    name: 'trace_function',
+    description: '追踪指定函数调用（等价于 hook_function + logStack=true）',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        expression: {
+          type: 'string',
+          description: '目标函数表达式（如 window.encrypt / obj.sign）',
+        },
+      },
+      required: ['expression'],
     },
   },
 ];

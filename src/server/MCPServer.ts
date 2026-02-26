@@ -95,7 +95,8 @@ export class MCPServer {
     // 🆕 调试器工具处理器
     this.debuggerHandlers = new DebuggerToolHandlers(
       this.debuggerManager,
-      this.runtimeInspector
+      this.runtimeInspector,
+      this.scriptManager
     );
 
     // 🆕 高级工具处理器（P2）
@@ -465,6 +466,8 @@ export class MCPServer {
             return await this.debuggerHandlers.handleBreakpointRemove(toolArgs);
           case 'breakpoint_list':
             return await this.debuggerHandlers.handleBreakpointList(toolArgs);
+          case 'breakpoint_set_on_text':
+            return await this.debuggerHandlers.handleBreakpointSetOnText(toolArgs);
 
           // 🆕 运行时检查（1个）
           case 'get_call_stack':
@@ -546,6 +549,8 @@ export class MCPServer {
             return await this.advancedHandlers.handleNetworkGetRequests(toolArgs);
           case 'network_get_response_body':
             return await this.advancedHandlers.handleNetworkGetResponseBody(toolArgs);
+          case 'network_get_request_initiator':
+            return await this.advancedHandlers.handleNetworkGetRequestInitiator(toolArgs);
           case 'network_get_stats':
             return await this.advancedHandlers.handleNetworkGetStats(toolArgs);
 
@@ -570,6 +575,10 @@ export class MCPServer {
             return await this.advancedHandlers.handleConsoleInjectFetchInterceptor(toolArgs);
           case 'console_inject_function_tracer':
             return await this.advancedHandlers.handleConsoleInjectFunctionTracer(toolArgs);
+          case 'hook_function':
+            return await this.handleHookFunction(toolArgs);
+          case 'trace_function':
+            return await this.handleTraceFunction(toolArgs);
 
           default:
             throw new Error(`Unknown tool: ${name}`);
@@ -1265,6 +1274,61 @@ Returns:
       default:
         throw new Error(`Unknown hook action: ${action}`);
     }
+  }
+
+  /**
+   * Hook 指定函数（创建并注入）
+   */
+  private async handleHookFunction(args: Record<string, unknown>) {
+    const expression = args.expression as string;
+    const logStack = (args.logStack as boolean) === true;
+
+    if (!expression) {
+      throw new Error('expression is required');
+    }
+
+    const hook = await this.hookManager.createHook({
+      target: expression,
+      type: 'function',
+      action: 'log',
+    });
+
+    const page = await this.collector.getActivePage();
+
+    // 立即在当前页面生效
+    await page.evaluate(hook.script);
+    // 后续页面导航时持续生效
+    await page.evaluateOnNewDocument(hook.script);
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify(
+            {
+              success: true,
+              message: `Function hook injected: ${expression}`,
+              expression,
+              hookId: hook.hookId,
+              stackIncludedByDefault: true,
+              requestedLogStack: logStack,
+            },
+            null,
+            2
+          ),
+        },
+      ],
+    };
+  }
+
+  /**
+   * 追踪函数调用（等价于 hook_function + logStack=true）
+   */
+  private async handleTraceFunction(args: Record<string, unknown>) {
+    return this.handleHookFunction({
+      ...args,
+      logStack: true,
+    });
   }
 
   /**

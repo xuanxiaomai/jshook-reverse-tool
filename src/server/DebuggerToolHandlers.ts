@@ -6,11 +6,13 @@
 
 import type { DebuggerManager } from '../modules/debugger/DebuggerManager.js';
 import type { RuntimeInspector } from '../modules/debugger/RuntimeInspector.js';
+import type { ScriptManager } from '../modules/debugger/ScriptManager.js';
 
 export class DebuggerToolHandlers {
   constructor(
     private debuggerManager: DebuggerManager,
-    private runtimeInspector: RuntimeInspector
+    private runtimeInspector: RuntimeInspector,
+    private scriptManager: ScriptManager
   ) {}
 
   // ==================== 调试器控制 ====================
@@ -194,6 +196,86 @@ export class DebuggerToolHandlers {
             enabled: bp.enabled,
             hitCount: bp.hitCount,
           })),
+        }, null, 2),
+      }],
+    };
+  }
+
+  async handleBreakpointSetOnText(args: Record<string, unknown>) {
+    const keyword = args.keyword as string;
+    const isRegex = (args.isRegex as boolean) ?? false;
+    const caseSensitive = (args.caseSensitive as boolean) ?? false;
+    const matchIndex = (args.matchIndex as number) ?? 0;
+    const condition = args.condition as string | undefined;
+
+    if (!keyword) {
+      throw new Error('keyword is required');
+    }
+    if (matchIndex < 0) {
+      throw new Error('matchIndex must be >= 0');
+    }
+
+    const result = await this.scriptManager.searchInScripts(keyword, {
+      isRegex,
+      caseSensitive,
+      maxMatches: matchIndex + 1,
+      contextLines: 0,
+    });
+
+    if (!result.matches || result.matches.length === 0) {
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            success: false,
+            message: 'No code match found for keyword',
+            keyword,
+          }, null, 2),
+        }],
+      };
+    }
+
+    const target = result.matches[matchIndex];
+    if (!target) {
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            success: false,
+            message: `matchIndex out of range: ${matchIndex}`,
+            totalMatches: result.matches.length,
+          }, null, 2),
+        }],
+      };
+    }
+
+    const breakpoint = await this.debuggerManager.setBreakpoint({
+      scriptId: target.scriptId,
+      lineNumber: Math.max(0, target.line - 1),
+      columnNumber: target.column,
+      condition,
+    });
+
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify({
+          success: true,
+          keyword,
+          matchIndex,
+          matched: {
+            scriptId: target.scriptId,
+            url: target.url,
+            line: target.line,
+            column: target.column,
+            matchText: target.matchText,
+          },
+          breakpoint: {
+            breakpointId: breakpoint.breakpointId,
+            location: breakpoint.location,
+            condition: breakpoint.condition,
+            enabled: breakpoint.enabled,
+          },
         }, null, 2),
       }],
     };

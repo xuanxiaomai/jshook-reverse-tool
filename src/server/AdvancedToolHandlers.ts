@@ -345,6 +345,62 @@ export class AdvancedToolHandlers {
     };
   }
 
+  async handleNetworkGetRequestInitiator(args: Record<string, unknown>) {
+    const requestId = args.requestId as string;
+    if (!requestId) {
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            success: false,
+            message: 'requestId parameter is required',
+            hint: 'Get requestId from network_get_requests tool',
+          }, null, 2),
+        }],
+      };
+    }
+
+    if (!this.consoleMonitor.isNetworkEnabled()) {
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            success: false,
+            message: 'Network monitoring is not enabled',
+            hint: 'Use network_enable tool first',
+          }, null, 2),
+        }],
+      };
+    }
+
+    const activity = this.consoleMonitor.getNetworkActivity(requestId);
+    if (!activity.request) {
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            success: false,
+            message: `Request not found: ${requestId}`,
+            hint: 'Make sure requestId comes from network_get_requests in current session',
+          }, null, 2),
+        }],
+      };
+    }
+
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify({
+          success: true,
+          requestId,
+          url: activity.request.url,
+          method: activity.request.method,
+          initiator: activity.request.initiator || null,
+        }, null, 2),
+      }],
+    };
+  }
+
   async handleNetworkGetStats(_args: Record<string, unknown>) {
     // ✅ 添加状态检查
     if (!this.consoleMonitor.isNetworkEnabled()) {
