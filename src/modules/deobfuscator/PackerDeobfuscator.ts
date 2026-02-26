@@ -136,7 +136,6 @@ export class PackerDeobfuscator {
   } | null {
     try {
       // 使用Function构造器安全地解析参数
-      // eslint-disable-next-line no-new-func
       const parseFunc = new Function(`return [${argsString}];`);
       const params = parseFunc();
 
@@ -241,7 +240,6 @@ export class AAEncodeDeobfuscator {
     try {
       // AAEncode本质上是可执行的JavaScript
       // 使用Function构造器执行并获取结果
-      // eslint-disable-next-line no-new-func
       const decoded = new Function(`return (${code})`)();
 
       logger.info('✅ AAEncode反混淆完成');
