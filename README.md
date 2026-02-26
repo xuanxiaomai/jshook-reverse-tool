@@ -102,6 +102,7 @@ watch_evaluate_all()  // 查看所有监控变量
 
 **亮点功能**:
 - ✅ 代码断点、条件断点、异常断点
+- ✅ 文本断点（`breakpoint_set_on_text`，压缩代码更好用）
 - ✅ XHR/Fetch 断点（拦截网络请求）
 - ✅ 事件断点（点击、定时器、WebSocket）
 - ✅ Watch 表达式、调用栈分析
@@ -120,6 +121,9 @@ page_navigate(url="https://api.example.com")
 // 过滤包含 "api" 的请求
 network_get_requests(url="api", method="POST")
 
+// 查看请求由哪段 JS 发起（含 initiator/stack）
+network_get_request_initiator(requestId="xxx")
+
 // 查看响应体
 network_get_response_body(requestId="xxx")
 
@@ -129,6 +133,7 @@ network_get_stats()
 
 **亮点功能**:
 - ✅ 捕获请求头、POST 数据、响应体
+- ✅ 定位请求发起方（`network_get_request_initiator`）
 - ✅ 智能过滤（URL、方法、类型）
 - ✅ 统计分析（请求数、失败率、耗时）
 
@@ -481,6 +486,21 @@ blackbox_add_common()  // 一键屏蔽常见库
 // 或手动添加
 blackbox_add(urlPattern="*jquery*")
 ```
+
+### Q: 压缩代码里断点总打不准？
+
+**A**:
+```javascript
+// 先搜代码片段
+search_in_scripts(keyword="encrypt", maxMatches=20)
+
+// 再按匹配结果自动下断点（比手填行号更稳）
+breakpoint_set_on_text(keyword="encrypt", matchIndex=0)
+```
+
+实战建议：
+- 善用搜索：`search_in_scripts` 比手动翻代码快
+- 断点要精准：`breakpoint_set_on_text` 比行号更可靠
 
 ---
 
