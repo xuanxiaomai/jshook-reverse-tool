@@ -67,6 +67,7 @@ JSHook 是一个基于 **MCP (Model Context Protocol)** 的 JavaScript 逆向工
 // 示例：自动化登录流程
 browser_launch()
 stealth_inject()  // 注入反检测脚本
+anti_debug_inject()  // 注入反反调试脚本（AntiDebug_Breaker）
 page_navigate(url="https://example.com/login")
 page_type(selector="#username", text="user@example.com")
 page_type(selector="#password", text="********")
@@ -75,9 +76,13 @@ page_click(selector="#loginBtn")
 
 **亮点功能**:
 - ✅ 2024-2025 最新反检测技术（隐藏 webdriver、Canvas指纹处理）
+- ✅ 反反调试能力（`anti_debug_inject`，绕过 debugger/console.clear/窗口尺寸检测等）
 - ✅ AI 视觉验证码识别（滑块/图形/reCAPTCHA）
 - ✅ 智能等待和自动重试
 - ✅ 移动设备模拟
+
+反反调试代码来源：
+- [AntiDebug_Breaker](https://github.com/0xsdeo/AntiDebug_Breaker)
 
 ### 2. 专业调试器 (38 个工具)
 
