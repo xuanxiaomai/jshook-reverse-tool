@@ -20,6 +20,15 @@ export const debuggerTools: Tool[] = [
       properties: {},
     },
   },
+
+  {
+    name: 'debugger_init_advanced_features',
+    description: 'Initialize advanced debugger features (watch/XHR/event/blackbox managers). Call this after debugger_enable before using advanced debug tools.',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+    },
+  },
   
   {
     name: 'debugger_disable',

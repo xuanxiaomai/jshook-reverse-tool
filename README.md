@@ -496,6 +496,8 @@ blackbox_add(urlPattern="*jquery*")
 
 **A**:
 ```javascript
+// 前置：先 collect_code(url="...") 收集脚本
+
 // 先搜代码片段
 search_in_scripts(keyword="encrypt", maxMatches=20)
 
@@ -506,6 +508,7 @@ breakpoint_set_on_text(keyword="encrypt", matchIndex=0)
 实战建议：
 - 善用搜索：`search_in_scripts` 比手动翻代码快
 - 断点要精准：`breakpoint_set_on_text` 比行号更可靠
+- 先收集再搜索：`collect_code` 是 `search_in_scripts` 的前置步骤
 
 ---
 

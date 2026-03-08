@@ -33,6 +33,34 @@ export class DebuggerToolHandlers {
     };
   }
 
+  async handleDebuggerInitAdvancedFeatures(_args: Record<string, unknown>) {
+    try {
+      await this.debuggerManager.initAdvancedFeatures(this.runtimeInspector);
+
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            success: true,
+            message: 'Advanced debugger features initialized',
+            initialized: ['watch', 'xhr_breakpoint', 'event_breakpoint', 'blackbox'],
+          }, null, 2),
+        }],
+      };
+    } catch (error: any) {
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            success: false,
+            message: 'Failed to initialize advanced debugger features',
+            error: error.message || String(error),
+          }, null, 2),
+        }],
+      };
+    }
+  }
+
   async handleDebuggerDisable(_args: Record<string, unknown>) {
     await this.debuggerManager.disable();
     await this.runtimeInspector.disable();

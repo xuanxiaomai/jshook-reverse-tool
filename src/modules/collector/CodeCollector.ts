@@ -1231,6 +1231,13 @@ export class CodeCollector {
     this.collectedFilesCache.clear();
     logger.info(`🧹 Cleared collected files cache (${count} files)`);
   }
+
+  /**
+   * 获取所有已缓存的收集文件（供搜索/分析回退使用）
+   */
+  getAllCollectedFiles(): CodeFile[] {
+    return Array.from(this.collectedFilesCache.values());
+  }
 }
 
 

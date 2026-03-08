@@ -446,6 +446,8 @@ export class MCPServer {
           // 🆕 调试器控制（7个）
           case 'debugger_enable':
             return await this.debuggerHandlers.handleDebuggerEnable(toolArgs);
+          case 'debugger_init_advanced_features':
+            return await this.debuggerHandlers.handleDebuggerInitAdvancedFeatures(toolArgs);
           case 'debugger_disable':
             return await this.debuggerHandlers.handleDebuggerDisable(toolArgs);
           case 'debugger_pause':
@@ -653,6 +655,9 @@ export class MCPServer {
       {
         name: 'search_in_scripts',
         description: `🆕 Search for keywords in collected scripts. Auto-truncates large results to avoid context overflow.
+
+Prerequisite:
+- Call collect_code(url=...) first to collect target scripts.
 
 Use this tool when:
 - You need to find where a specific function/variable is defined
@@ -1051,6 +1056,11 @@ Returns:
    * 处理代码搜索 - 使用 ScriptManager（增强版 - 防止上下文溢出）
    */
   private async handleSearchInScripts(args: Record<string, unknown>) {
+    const keyword = args.keyword as string;
+    if (!keyword || typeof keyword !== 'string') {
+      throw new Error('keyword is required');
+    }
+
     const { ScriptManager } = await import('../modules/debugger/ScriptManager.js');
     const scriptManager = new ScriptManager(this.collector);
 
@@ -1059,13 +1069,46 @@ Returns:
     const maxMatches = (args.maxMatches as number) ?? 100;
     const returnSummary = (args.returnSummary as boolean) ?? false;
     const maxContextSize = (args.maxContextSize as number) ?? 50000; // 默认 50KB
+    const isRegex = (args.isRegex as boolean) ?? false;
+    const caseSensitive = (args.caseSensitive as boolean) ?? false;
+    const contextLines = (args.contextLines as number) ?? 3;
 
-    const result = await scriptManager.searchInScripts(args.keyword as string, {
-      isRegex: args.isRegex as boolean,
-      caseSensitive: args.caseSensitive as boolean,
-      contextLines: args.contextLines as number,
+    const liveResult = await scriptManager.searchInScripts(keyword, {
+      isRegex,
+      caseSensitive,
+      contextLines,
       maxMatches: maxMatches,
     });
+
+    // 回退：实时脚本未命中时，改为搜索 collect_code 已缓存的文件
+    let cacheMatches: Array<{
+      scriptId: string;
+      url: string;
+      line: number;
+      column: number;
+      matchText: string;
+      context: string;
+    }> = [];
+    if ((liveResult.matches?.length ?? 0) === 0) {
+      cacheMatches = this.searchInCollectedFiles(keyword, {
+        isRegex,
+        caseSensitive,
+        contextLines,
+        maxMatches,
+      });
+    }
+
+    const mergedMatches = (liveResult.matches?.length ?? 0) > 0 ? (liveResult.matches || []) : cacheMatches;
+    const result = {
+      keyword,
+      totalMatches: mergedMatches.length,
+      matches: mergedMatches,
+      source: (liveResult.matches?.length ?? 0) > 0 ? 'live-scripts' : 'collected-cache',
+      hint:
+        (liveResult.matches?.length ?? 0) > 0
+          ? undefined
+          : 'No live scripts matched; searched collected cache from collect_code.',
+    };
 
     // 🆕 计算结果大小
     const resultStr = JSON.stringify(result);
@@ -1076,11 +1119,12 @@ Returns:
     if (returnSummary || isTooLarge) {
       const summary = {
         success: true,
-        keyword: args.keyword,
+        keyword,
         totalMatches: result.matches?.length || 0,
         resultSize: resultSize,
         resultSizeKB: (resultSize / 1024).toFixed(2),
         truncated: isTooLarge,
+        source: (result as any).source,
         reason: isTooLarge
           ? `Result too large (${(resultSize / 1024).toFixed(2)} KB > ${(maxContextSize / 1024).toFixed(2)} KB)`
           : 'Summary mode enabled',
@@ -1120,6 +1164,87 @@ Returns:
         },
       ],
     };
+  }
+
+  /**
+   * 在 collect_code 的缓存文件中搜索关键词（回退路径）
+   */
+  private searchInCollectedFiles(
+    keyword: string,
+    options: {
+      isRegex?: boolean;
+      caseSensitive?: boolean;
+      contextLines?: number;
+      maxMatches?: number;
+    } = {}
+  ): Array<{
+    scriptId: string;
+    url: string;
+    line: number;
+    column: number;
+    matchText: string;
+    context: string;
+  }> {
+    const {
+      isRegex = false,
+      caseSensitive = false,
+      contextLines = 3,
+      maxMatches = 100,
+    } = options;
+
+    const files = this.collector.getAllCollectedFiles();
+    if (files.length === 0) {
+      return [];
+    }
+
+    const searchRegex = isRegex
+      ? new RegExp(keyword, caseSensitive ? 'g' : 'gi')
+      : new RegExp(keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), caseSensitive ? 'g' : 'gi');
+
+    const matches: Array<{
+      scriptId: string;
+      url: string;
+      line: number;
+      column: number;
+      matchText: string;
+      context: string;
+    }> = [];
+
+    for (const file of files) {
+      if (!file.content || matches.length >= maxMatches) {
+        break;
+      }
+
+      const lines = file.content.split('\n');
+      for (let i = 0; i < lines.length; i++) {
+        if (matches.length >= maxMatches) {
+          break;
+        }
+        const line = lines[i];
+        if (!line) {
+          continue;
+        }
+
+        const lineMatches = Array.from(line.matchAll(searchRegex));
+        for (const match of lineMatches) {
+          if (matches.length >= maxMatches) {
+            break;
+          }
+          const startLine = Math.max(0, i - contextLines);
+          const endLine = Math.min(lines.length - 1, i + contextLines);
+          matches.push({
+            scriptId: file.url,
+            url: file.url,
+            line: i + 1,
+            column: match.index || 0,
+            matchText: match[0],
+            context: lines.slice(startLine, endLine + 1).join('\n'),
+          });
+        }
+      }
+    }
+
+    return matches;
   }
 
   /**
